@@ -1,4 +1,4 @@
-package com.example.rsocketmessaging;
+package com.example.producer;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -7,7 +7,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class RsocketMessagingApplicationTests {
+public class ProducerApplicationTests {
 
 	@Test
 	public void contextLoads() {
