@@ -18,8 +18,9 @@ import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.time.Instant;
 
 @SpringBootApplication
 public class ConsumerApplication {
@@ -29,22 +30,21 @@ public class ConsumerApplication {
 	}
 
 	@Bean
-	RSocketRequester requester(RSocketStrategies strategies) {
-		return RSocketRequester
-			.create(this.rSocket(), MimeTypeUtils.APPLICATION_JSON, strategies);
-	}
-
-	@Bean
 	RSocket rSocket() {
 		return RSocketFactory
 			.connect()
-			.frameDecoder(PayloadDecoder.ZERO_COPY)
 			.dataMimeType(MimeTypeUtils.APPLICATION_JSON_VALUE)
+			.frameDecoder(PayloadDecoder.ZERO_COPY)
 			.transport(TcpClientTransport.create(7000))
 			.start()
 			.block();
 	}
 
+	@Bean
+	RSocketRequester requester(RSocketStrategies rSocketStrategies) {
+		return RSocketRequester.create(this.rSocket(),
+			MimeTypeUtils.APPLICATION_JSON, rSocketStrategies);
+	}
 }
 
 
@@ -58,7 +58,7 @@ class GreetingsRestController {
 	}
 
 	@GetMapping("/error")
-	Publisher<GreetingsResponse> errorResponse() {
+	Publisher<GreetingsResponse> error() {
 		return this.requester
 			.route("error")
 			.data(Mono.empty())
@@ -67,23 +67,21 @@ class GreetingsRestController {
 
 	@GetMapping(
 		produces = MediaType.TEXT_EVENT_STREAM_VALUE,
-		value = "/greet/sse/{name}"
-	)
-	Flux<GreetingsResponse> greetingsResponseFlux(@PathVariable String name) {
+		value = "/greet/sse/{name}")
+	Publisher<GreetingsResponse> greetStream(@PathVariable String name) {
 		return this.requester
-			.route("greet-over-time")
+			.route("greet-stream")
 			.data(new GreetingsRequest(name))
 			.retrieveFlux(GreetingsResponse.class);
 	}
 
 	@GetMapping("/greet/{name}")
-	Mono<GreetingsResponse> greet(@PathVariable String name) {
+	Publisher<GreetingsResponse> greet(@PathVariable String name) {
 		return this.requester
 			.route("greet")
 			.data(new GreetingsRequest(name))
 			.retrieveMono(GreetingsResponse.class);
 	}
-
 }
 
 @Data
@@ -94,8 +92,19 @@ class GreetingsRequest {
 }
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 class GreetingsResponse {
+
 	private String greeting;
+
+	GreetingsResponse() {
+	}
+
+	GreetingsResponse(String name) {
+		this.withGreeting("Hello " + name + " @ " + Instant.now());
+	}
+
+	GreetingsResponse withGreeting(String msg) {
+		this.greeting = msg;
+		return this;
+	}
 }
